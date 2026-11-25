@@ -121,6 +121,7 @@ function include(filename) {
  */
 function getHomeData(pin) {
   var settings = requirePin_(pin);
+  cleanupOldMonthSheets_();
   var today = getTodayInfo_();
   var showRent = today.day >= settings.displayDay;
   return {
@@ -172,6 +173,16 @@ function getRoommateDetails(pin, roommateName) {
   }
 
   return result;
+}
+
+/**
+ * Exposed to the client. Checks the PIN, then returns every month's locked
+ * rent breakdown, newest first — the permanent record that survives even
+ * after that month's itemized expense rows have been cleaned up.
+ */
+function getRentHistoryList(pin) {
+  requirePin_(pin);
+  return getRentHistory_();
 }
 
 /**
@@ -305,6 +316,61 @@ function getMonthItemsForRoommate_(monthKey, roommateName) {
     }
   });
   return items;
+}
+
+/**
+ * Keeps only the current and previous month's itemized expense sheets.
+ * Older ones are deleted outright — this is safe because the app only ever
+ * needs the current month (to log into) and the previous month (as the
+ * spend behind the current month's rent); once a month is no longer either
+ * of those, the app will never read its sheet again. What must survive
+ * permanently (each month's final rent per roommate) already lives in
+ * RentHistory, which this never touches.
+ */
+function cleanupOldMonthSheets_() {
+  var today = getTodayInfo_();
+  var keep = {};
+  keep[today.currentMonthKey] = true;
+  keep[today.prevMonthKey] = true;
+
+  var ss = getSpreadsheet_();
+  var monthSheetPattern = /^\d{4}-\d{2}$/;
+  ss.getSheets().forEach(function (sheet) {
+    var name = sheet.getName();
+    if (monthSheetPattern.test(name) && !keep[name]) {
+      ss.deleteSheet(sheet);
+    }
+  });
+}
+
+/** Every locked month's rent breakdown, newest first. */
+function getRentHistory_() {
+  var sheet = getSpreadsheet_().getSheetByName(SHEET_RENT_HISTORY);
+  if (!sheet) return [];
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+
+  var data = sheet.getRange(2, 1, lastRow - 1, RENT_HISTORY_HEADERS.length).getValues();
+  var byMonth = {};
+  var order = [];
+  data.forEach(function (r) {
+    var rentMonthKey = r[1];
+    if (!byMonth[rentMonthKey]) {
+      byMonth[rentMonthKey] = { spendMonthKey: r[2], rows: [] };
+      order.push(rentMonthKey);
+    }
+    byMonth[rentMonthKey].rows.push({ name: r[3], spend: Number(r[4]), rent: Number(r[6]) });
+  });
+
+  order.sort().reverse();
+  return order.map(function (key) {
+    var m = byMonth[key];
+    return {
+      rentMonthLabel: formatMonthLabel_(key),
+      spendMonthLabel: formatMonthLabel_(m.spendMonthKey),
+      rows: m.rows
+    };
+  });
 }
 
 function getOrCreateMonthSheet_(monthKey) {

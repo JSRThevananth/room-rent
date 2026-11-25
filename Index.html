@@ -36,6 +36,7 @@
       <div class="view-toggle">
         <button type="button" id="viewLogBtn" class="view-btn active" onclick="setView('log')">Log expense</button>
         <button type="button" id="viewDetailsBtn" class="view-btn" onclick="setView('details')">Details</button>
+        <button type="button" id="viewHistoryBtn" class="view-btn" onclick="setView('history')">History</button>
       </div>
 
       <div id="panel">
@@ -51,6 +52,11 @@
         <div id="detailsView" class="hidden">
           <p id="detailsLoading" class="muted">Loading...</p>
           <div id="detailsContent"></div>
+        </div>
+
+        <div id="historyView" class="hidden">
+          <p id="historyLoading" class="muted">Loading...</p>
+          <div id="historyContent"></div>
         </div>
       </div>
     </div>

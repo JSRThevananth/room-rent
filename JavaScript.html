@@ -5,6 +5,7 @@
   var currentView = 'log';
   var rowCount = 0;
   var detailsCache = {};
+  var historyCache = null;
   var PIN_STORAGE_KEY = 'roommateRentPin';
 
   document.addEventListener('DOMContentLoaded', function () {
@@ -183,9 +184,49 @@
     currentView = view;
     document.getElementById('viewLogBtn').classList.toggle('active', view === 'log');
     document.getElementById('viewDetailsBtn').classList.toggle('active', view === 'details');
+    document.getElementById('viewHistoryBtn').classList.toggle('active', view === 'history');
     document.getElementById('logView').classList.toggle('hidden', view !== 'log');
     document.getElementById('detailsView').classList.toggle('hidden', view !== 'details');
+    document.getElementById('historyView').classList.toggle('hidden', view !== 'history');
     if (view === 'details') loadDetails();
+    if (view === 'history') loadHistory();
+  }
+
+  function loadHistory() {
+    if (historyCache) {
+      renderHistory(historyCache);
+      return;
+    }
+    document.getElementById('historyLoading').textContent = 'Loading...';
+    document.getElementById('historyLoading').classList.remove('hidden');
+    document.getElementById('historyContent').innerHTML = '';
+
+    google.script.run
+      .withSuccessHandler(function (months) {
+        historyCache = months;
+        renderHistory(months);
+      })
+      .withFailureHandler(function (err) {
+        document.getElementById('historyLoading').textContent = (err && err.message) || String(err);
+      })
+      .getRentHistoryList(pin);
+  }
+
+  function renderHistory(months) {
+    document.getElementById('historyLoading').classList.add('hidden');
+    if (!months || months.length === 0) {
+      document.getElementById('historyContent').innerHTML = '<p class="muted">No rent has been calculated yet.</p>';
+      return;
+    }
+    var html = months.map(function (m) {
+      var rowsHtml = m.rows.map(function (row) {
+        return '<tr><td>' + escapeHtml(row.name) + '</td><td>$' + row.spend.toFixed(2) + '</td><td>$' + row.rent.toFixed(2) + '</td></tr>';
+      }).join('');
+      return '<h3>' + escapeHtml(m.rentMonthLabel) + '</h3>' +
+        '<p class="muted">Based on essentials spending in ' + escapeHtml(m.spendMonthLabel) + '</p>' +
+        '<table class="detail-table"><thead><tr><th>Roommate</th><th>Spend</th><th>Rent</th></tr></thead><tbody>' + rowsHtml + '</tbody></table>';
+    }).join('');
+    document.getElementById('historyContent').innerHTML = html;
   }
 
   function loadDetails(forceRefresh) {

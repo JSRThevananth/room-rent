@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <?!= include('Stylesheet'); ?>
+</head>
+<body>
+  <div class="page">
+    <div id="pinGate" class="pin-gate">
+      <p class="mark">Household Ledger</p>
+      <p class="muted">Enter the PIN to continue.</p>
+      <input type="password" id="pinInput" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="PIN">
+      <button type="button" id="unlockBtn" onclick="unlock()">Unlock</button>
+      <p id="pinError" class="status error"></p>
+    </div>
+
+    <div id="app" class="hidden">
+      <div class="topbar">
+        <h1>Household Ledger</h1>
+        <span class="month figure" id="topbarMonth"></span>
+      </div>
+
+      <div id="rentBannerContainer"></div>
+
+      <h2>Log an expense &mdash; <span id="currentMonthLabel"></span></h2>
+
+      <div id="noRoommates" class="hidden">
+        <p class="warning">No roommates are set up yet. Open the Google Sheet and add names to the "Roommates" tab.</p>
+      </div>
+
+      <div class="tabs" id="tabs"></div>
+
+      <div class="view-toggle">
+        <button type="button" id="viewLogBtn" class="view-btn active" onclick="setView('log')">Log expense</button>
+        <button type="button" id="viewDetailsBtn" class="view-btn" onclick="setView('details')">Details</button>
+      </div>
+
+      <div id="panel">
+        <div id="logView">
+          <div id="rows"></div>
+          <button type="button" id="addRowBtn" onclick="addRow()">+ Add item</button>
+          <div class="submit-row">
+            <button type="button" id="submitBtn" onclick="submitExpenses()">Submit expenses</button>
+          </div>
+          <p id="status" class="status"></p>
+        </div>
+
+        <div id="detailsView" class="hidden">
+          <p id="detailsLoading" class="muted">Loading...</p>
+          <div id="detailsContent"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <?!= include('JavaScript'); ?>
+</body>
+</html>

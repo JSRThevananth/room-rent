@@ -1,0 +1,254 @@
+<script>
+  var pin = null;
+  var roommates = [];
+  var currentRoommate = null;
+  var currentView = 'log';
+  var rowCount = 0;
+  var detailsCache = {};
+  var PIN_STORAGE_KEY = 'roommateRentPin';
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.getElementById('pinInput').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') unlock();
+    });
+
+    var saved = null;
+    try { saved = sessionStorage.getItem(PIN_STORAGE_KEY); } catch (e) { /* storage unavailable */ }
+    if (saved) {
+      document.getElementById('pinInput').value = saved;
+      unlock();
+    }
+  });
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+    });
+  }
+
+  // ---------- PIN gate ----------
+
+  function unlock() {
+    var entered = document.getElementById('pinInput').value.trim();
+    if (!entered) return;
+
+    document.getElementById('unlockBtn').disabled = true;
+    document.getElementById('pinError').textContent = '';
+
+    google.script.run
+      .withSuccessHandler(function (data) {
+        document.getElementById('unlockBtn').disabled = false;
+        pin = entered;
+        try { sessionStorage.setItem(PIN_STORAGE_KEY, entered); } catch (e) { /* storage unavailable */ }
+        document.getElementById('pinGate').classList.add('hidden');
+        document.getElementById('app').classList.remove('hidden');
+        renderHome(data);
+      })
+      .withFailureHandler(function (err) {
+        document.getElementById('unlockBtn').disabled = false;
+        try { sessionStorage.removeItem(PIN_STORAGE_KEY); } catch (e) { /* storage unavailable */ }
+        document.getElementById('pinError').textContent = (err && err.message) || String(err);
+      })
+      .getHomeData(entered);
+  }
+
+  // ---------- home page ----------
+
+  function renderHome(data) {
+    roommates = data.roommates || [];
+    document.getElementById('currentMonthLabel').textContent = data.currentMonthLabel;
+    document.getElementById('topbarMonth').textContent = data.currentMonthLabel;
+    document.getElementById('rentBannerContainer').innerHTML = renderRentBanner(data);
+    document.getElementById('noRoommates').classList.toggle('hidden', roommates.length > 0);
+
+    var tabsEl = document.getElementById('tabs');
+    tabsEl.innerHTML = roommates.map(function (name, i) {
+      return '<button class="tab-btn' + (i === 0 ? ' active' : '') + '" data-name="' + escapeHtml(name) + '" onclick="selectRoommate(\'' + escapeHtml(name) + '\')">' + escapeHtml(name) + '</button>';
+    }).join('');
+
+    var hasRoommates = roommates.length > 0;
+    document.querySelector('.view-toggle').classList.toggle('hidden', !hasRoommates);
+    document.getElementById('panel').classList.toggle('hidden', !hasRoommates);
+
+    if (hasRoommates) selectRoommate(roommates[0]);
+  }
+
+  function renderRentBanner(data) {
+    if (!data.showRent) return '';
+    var r = data.rentInfo;
+    var html = '<div class="rent-banner"><h2>Rent for ' + escapeHtml(r.rentMonthLabel) + '</h2>' +
+      '<p class="muted">Based on essentials spending in ' + escapeHtml(r.spendMonthLabel) + '</p>';
+    if (r.warning) html += '<p class="warning">' + escapeHtml(r.warning) + '</p>';
+    if (r.rows && r.rows.length > 0) {
+      var maxSpend = Math.max.apply(null, r.rows.map(function (row) { return row.spend; })) || 1;
+      html += '<table class="rent-table"><thead><tr><th>Roommate</th><th>Spent in ' + escapeHtml(r.spendMonthLabel) + '</th><th>Rent owed</th></tr></thead><tbody>';
+      r.rows.forEach(function (row) {
+        var pct = Math.round((row.spend / maxSpend) * 100);
+        var isTop = row.spend === maxSpend && row.spend > 0;
+        html += '<tr><td class="name-cell">' +
+          '<span class="rent-name">' + escapeHtml(row.name) + '</span>' +
+          '<span class="rent-bar-track"><span class="rent-bar-fill' + (isTop ? ' top' : '') + '" style="width:' + pct + '%"></span></span>' +
+          '</td><td>$' + row.spend.toFixed(2) + '</td><td class="rent-amount">$' + row.rent.toFixed(2) + '</td></tr>';
+      });
+      html += '</tbody></table>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function selectRoommate(name) {
+    currentRoommate = name;
+    document.querySelectorAll('.tab-btn').forEach(function (btn) {
+      btn.classList.toggle('active', btn.getAttribute('data-name') === name);
+    });
+    resetRows();
+    setStatus('', '');
+    setView('log');
+  }
+
+  // ---------- log expense ----------
+
+  function resetRows() {
+    var rowsEl = document.getElementById('rows');
+    rowsEl.innerHTML = '';
+    rowCount = 0;
+    addRow();
+  }
+
+  function addRow() {
+    rowCount++;
+    var rowsEl = document.getElementById('rows');
+    var row = document.createElement('div');
+    row.className = 'expense-row';
+    row.innerHTML =
+      '<input type="text" placeholder="Item (e.g. groceries)" class="item-input">' +
+      '<input type="number" placeholder="Amount" min="0" step="0.01" class="amount-input">' +
+      '<button type="button" class="remove-row" onclick="removeRow(this)" aria-label="Remove item">&times;</button>';
+    rowsEl.appendChild(row);
+  }
+
+  function removeRow(btn) {
+    var rowsEl = document.getElementById('rows');
+    if (rowsEl.children.length > 1) {
+      btn.closest('.expense-row').remove();
+    }
+  }
+
+  function setStatus(message, type) {
+    var el = document.getElementById('status');
+    el.textContent = message;
+    el.className = 'status' + (type ? ' ' + type : '');
+  }
+
+  function submitExpenses() {
+    if (!currentRoommate) return;
+
+    var items = [];
+    document.querySelectorAll('.expense-row').forEach(function (row) {
+      var item = row.querySelector('.item-input').value.trim();
+      var amount = row.querySelector('.amount-input').value;
+      if (item || amount) items.push({ item: item, amount: amount });
+    });
+
+    if (items.length === 0) {
+      setStatus('Add at least one item and amount first.', 'error');
+      return;
+    }
+
+    var submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = true;
+    setStatus('Submitting...', '');
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        submitBtn.disabled = false;
+        setStatus(
+          'Added $' + result.addedTotal.toFixed(2) + ' for ' + currentRoommate +
+          '. Total logged for ' + result.monthLabel + ': $' + result.runningTotal.toFixed(2) + '.',
+          'success'
+        );
+        delete detailsCache[currentRoommate];
+        resetRows();
+      })
+      .withFailureHandler(function (err) {
+        submitBtn.disabled = false;
+        setStatus(err.message || String(err), 'error');
+      })
+      .addExpenseEntries(pin, currentRoommate, items);
+  }
+
+  // ---------- details view ----------
+
+  function setView(view) {
+    currentView = view;
+    document.getElementById('viewLogBtn').classList.toggle('active', view === 'log');
+    document.getElementById('viewDetailsBtn').classList.toggle('active', view === 'details');
+    document.getElementById('logView').classList.toggle('hidden', view !== 'log');
+    document.getElementById('detailsView').classList.toggle('hidden', view !== 'details');
+    if (view === 'details') loadDetails();
+  }
+
+  function loadDetails(forceRefresh) {
+    if (!currentRoommate) return;
+    if (!forceRefresh && detailsCache[currentRoommate]) {
+      renderDetails(detailsCache[currentRoommate]);
+      return;
+    }
+    document.getElementById('detailsLoading').textContent = 'Loading...';
+    document.getElementById('detailsLoading').classList.remove('hidden');
+    document.getElementById('detailsContent').innerHTML = '';
+
+    google.script.run
+      .withSuccessHandler(function (data) {
+        detailsCache[currentRoommate] = data;
+        renderDetails(data);
+      })
+      .withFailureHandler(function (err) {
+        document.getElementById('detailsLoading').textContent = (err && err.message) || String(err);
+      })
+      .getRoommateDetails(pin, currentRoommate);
+  }
+
+  function itemsTable(items, emptyText) {
+    if (!items || items.length === 0) {
+      return '<p class="muted">' + emptyText + '</p>';
+    }
+    var rowsHtml = items.map(function (it) {
+      return '<tr><td>' + escapeHtml(it.timestamp) + '</td><td>' + escapeHtml(it.item) + '</td><td>$' + it.amount.toFixed(2) + '</td></tr>';
+    }).join('');
+    return '<table class="detail-table"><thead><tr><th>When</th><th>Item</th><th>Amount</th></tr></thead><tbody>' + rowsHtml + '</tbody></table>';
+  }
+
+  function renderDetails(data) {
+    document.getElementById('detailsLoading').classList.add('hidden');
+    var html = '';
+
+    html += '<h3>Your items &mdash; ' + escapeHtml(data.currentMonthLabel) + '</h3>';
+    html += itemsTable(data.currentItems, 'Nothing logged yet this month.');
+    html += '<p class="detail-total">Total so far: $' + data.currentTotal.toFixed(2) + '</p>';
+
+    if (!data.showRent) {
+      html += '<p class="muted">Rent calculation isn\'t shown until the configured day of the month.</p>';
+    } else if (data.rent) {
+      var r = data.rent;
+      html += '<h3>How your rent was calculated</h3>';
+      html += '<p class="muted">Based on what you logged in ' + escapeHtml(r.spendMonthLabel) + ':</p>';
+      html += itemsTable(r.items, 'Nothing was logged for ' + escapeHtml(r.spendMonthLabel) + '.');
+      if (r.warning) html += '<p class="warning">' + escapeHtml(r.warning) + '</p>';
+      html += '<table class="calc-table">' +
+        '<tr><td>Your spend</td><td>$' + r.myTotal.toFixed(2) + '</td></tr>' +
+        '<tr><td>Household average spend</td><td>$' + r.average.toFixed(2) + '</td></tr>' +
+        '<tr><td>Base rent</td><td>$' + r.baseRent.toFixed(2) + '</td></tr>' +
+        '<tr class="calc-result"><td>Your rent (base + average &minus; your spend)</td><td>$' + r.myRent.toFixed(2) + '</td></tr>' +
+        '</table>';
+
+      html += '<h3>Everyone, for comparison</h3>';
+      var allRowsHtml = r.allRows.map(function (row) {
+        return '<tr><td>' + escapeHtml(row.name) + '</td><td>$' + row.spend.toFixed(2) + '</td><td>$' + row.rent.toFixed(2) + '</td></tr>';
+      }).join('');
+      html += '<table class="detail-table"><thead><tr><th>Roommate</th><th>Spend</th><th>Rent</th></tr></thead><tbody>' + allRowsHtml + '</tbody></table>';
+    }
+
+    document.getElementById('detailsContent').innerHTML = html;
+  }
+</script>

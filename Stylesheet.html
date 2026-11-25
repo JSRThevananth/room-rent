@@ -1,0 +1,300 @@
+<style>
+  :root {
+    /* vintage ledger palette — low-chroma stone paper, ink text, one hue (bottle green) */
+    --ground: #f1f0ea;
+    --surface: #f9f7f0;
+    --border: #ddd7c4;      /* quiet panel hairline — a whisper, not a box */
+    --rule: #ece6d5;        /* row dividers inside tables, lighter still */
+    --input-border: #8a7d60; /* darker: inputs need ~3:1 to be perceivable, panel edges don't */
+    --text: #231d14;
+    --muted: #6f6450;
+    --accent: #201a11;      /* near-black ink, warm toned — the primary action fill */
+    --accent-ink: #f6f3e9;  /* text on the accent fill */
+    --data: #3c5a3f;        /* the one chart/data hue — bottle-green ledger ink */
+    --positive: #3c5a3f;
+    --negative: #8c3b32;    /* muted oxblood */
+    --warn-bg: #ece2c4;
+    --warn-text: #6b4a1e;
+
+    --radius-card: 10px;
+    --radius-control: 6px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+    background: var(--ground);
+    color: var(--text);
+  }
+
+  .figure {
+    font-family: "Courier Prime", "Courier New", monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .page {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 0 16px 60px;
+  }
+
+  .topbar {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 22px 0 18px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .topbar h1 {
+    font-size: 21px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: 0.01em;
+  }
+
+  .topbar .month {
+    font-size: 13px;
+    color: var(--muted);
+    font-family: "Courier Prime", "Courier New", monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  h2 { font-size: 16px; font-weight: 600; margin: 24px 0 8px; }
+  h3 { font-size: 14px; font-weight: 600; margin: 18px 0 6px; color: var(--text); }
+  .muted { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+
+  .rent-banner {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    padding: 16px;
+    margin-bottom: 8px;
+  }
+
+  .rent-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .rent-table th {
+    text-align: left;
+    padding: 6px 4px 8px;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+  .rent-table th:not(:first-child), .rent-table td:not(:first-child) { text-align: right; }
+  .rent-table td:not(:first-child) { font-family: "Courier Prime", "Courier New", monospace; font-variant-numeric: tabular-nums; }
+  .rent-table td { padding: 10px 4px 6px; border-bottom: 1px solid var(--rule); vertical-align: bottom; }
+  .rent-table .name-cell { padding-bottom: 2px; }
+  .rent-name { display: block; margin-bottom: 4px; }
+  .rent-bar-track { display: block; width: 100%; height: 2px; background: var(--rule); border-radius: 1px; }
+  .rent-bar-fill { display: block; height: 2px; background: var(--muted); border-radius: 1px; }
+  .rent-bar-fill.top { background: var(--data); }
+  .rent-amount { font-weight: 600; color: var(--text); }
+
+  .warning {
+    background: var(--warn-bg);
+    color: var(--warn-text);
+    padding: 10px 12px;
+    border-radius: var(--radius-control);
+    font-size: 13px;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tab-btn {
+    flex: 0 0 auto;
+    padding: 9px 14px 8px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--muted);
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    margin-bottom: -1px;
+  }
+
+  .tab-btn.active {
+    color: var(--text);
+    border-bottom-color: var(--accent);
+    font-weight: 600;
+  }
+
+  #panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    padding: 16px;
+    margin-top: 12px;
+  }
+
+  .expense-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .expense-row input[type="text"] { flex: 2; }
+  .expense-row input[type="number"] { flex: 1; font-family: "Courier Prime", "Courier New", monospace; }
+
+  input {
+    padding: 9px 10px;
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-control);
+    background: var(--ground);
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+    width: 100%;
+  }
+
+  input::placeholder { color: var(--muted); opacity: 0.8; }
+
+  .remove-row {
+    flex: 0 0 auto;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 0 6px;
+  }
+
+  #addRowBtn {
+    width: 100%;
+    padding: 9px 0;
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-control);
+    background: transparent;
+    color: var(--muted);
+    font-size: 13px;
+    cursor: pointer;
+    margin-bottom: 12px;
+  }
+
+  .submit-row { display: flex; justify-content: flex-end; }
+
+  .hidden { display: none !important; }
+
+  .pin-gate {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    padding: 28px 24px;
+    max-width: 280px;
+    margin: 72px auto;
+    text-align: center;
+  }
+
+  .pin-gate .mark {
+    font-size: 19px;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+
+  .pin-gate p.muted { margin-bottom: 16px; }
+
+  .pin-gate input {
+    text-align: center;
+    letter-spacing: 6px;
+    font-size: 18px;
+    font-family: "Courier Prime", "Courier New", monospace;
+    margin-bottom: 10px;
+  }
+
+  .pin-gate button {
+    width: 100%;
+    padding: 10px 0;
+    border: none;
+    border-radius: var(--radius-control);
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  .pin-gate button:disabled { opacity: 0.6; cursor: default; }
+
+  .view-toggle {
+    display: flex;
+    gap: 16px;
+    margin-top: 18px;
+  }
+
+  .view-btn {
+    padding: 4px 0;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--muted);
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  .view-btn.active {
+    border-bottom-color: var(--accent);
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  #panel h3:first-child { margin-top: 0; }
+
+  .detail-table, .calc-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+
+  .detail-table th {
+    text-align: left;
+    padding: 6px 4px;
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+  .detail-table th:last-child, .detail-table td:last-child { text-align: right; }
+  .detail-table td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--rule); }
+  .detail-table td:nth-child(3) { font-family: "Courier Prime", "Courier New", monospace; font-variant-numeric: tabular-nums; }
+
+  .calc-table td { padding: 6px 4px; border-bottom: 1px solid var(--rule); }
+  .calc-table td:last-child { text-align: right; font-family: "Courier Prime", "Courier New", monospace; font-variant-numeric: tabular-nums; }
+  .calc-table .calc-result td { font-weight: 700; border-top: 1px solid var(--border); border-bottom: none; }
+
+  .detail-total {
+    font-weight: 600;
+    text-align: right;
+    margin: 0 0 4px;
+    font-family: "Courier Prime", "Courier New", monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  #submitBtn {
+    padding: 10px 18px;
+    border: none;
+    border-radius: var(--radius-control);
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  #submitBtn:disabled { opacity: 0.6; cursor: default; }
+
+  .status { margin-top: 10px; font-size: 13px; min-height: 18px; }
+  .status.success { color: var(--data); }
+  .status.error { color: var(--negative); }
+</style>

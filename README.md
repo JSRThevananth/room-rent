@@ -23,31 +23,38 @@ recalculation.
 
 ## One-time setup
 
-1. Create a new Google Sheet (sheets.google.com -> Blank). Name it something
-   like "Roommate Rent Tracker".
-2. In the Sheet, go to **Extensions -> Apps Script**. This opens a script
-   bound to that Sheet.
-3. Delete the placeholder `Code.gs` content and paste in the `Code.gs` from
+You can start this from either a new standalone Apps Script project
+(script.google.com -> New project) or from inside a Google Sheet
+(Extensions -> Apps Script) — the script works either way and sets up its
+own spreadsheet automatically the first time you run it.
+
+1. Open or create your Apps Script project.
+2. Delete the placeholder `Code.gs` content and paste in the `Code.gs` from
    this folder.
-4. In the Apps Script editor, click the **+** next to "Files" -> **HTML**,
+3. In the Apps Script editor, click the **+** next to "Files" -> **HTML**,
    name it `Index`, and paste in `Index.html`. Repeat for `Stylesheet` and
    `JavaScript`.
-5. Click the gear icon (Project Settings) and check **"Show appsscript.json
+4. Click the gear icon (Project Settings) and check **"Show appsscript.json
    manifest file in editor"**. Open that file and replace its contents with
    `appsscript.json` from this folder. If you're not in the Toronto timezone,
    change `timeZone` to yours (e.g. `"Asia/Colombo"`).
-6. In the function dropdown at the top, select `setupSpreadsheet`, click
-   **Run**, and approve the permissions prompt. This creates the
-   `Roommates`, `Settings` and `RentHistory` tabs in your Sheet, seeded with
-   Roy, Bavan, Kana and Prashan, a $530 base rent, and PIN `4655`.
-7. Open the Sheet and check the `Settings` tab — adjust the rent amount, the
+5. In the function dropdown at the top, select `setupSpreadsheet`, click
+   **Run**, and approve the permissions prompt.
+   - If you opened this from inside a Sheet, it sets up that same Sheet.
+   - If you started a standalone project, it creates a brand-new Sheet
+     called "Roommate Rent Tracker" in your Drive and remembers it (it won't
+     create a second one if you run `setupSpreadsheet` again).
+   Either way this creates the `Roommates`, `Settings` and `RentHistory`
+   tabs, seeded with Roy, Bavan, Kana and Prashan, a $530 base rent, and PIN
+   `4655`.
+6. Open that Sheet and check the `Settings` tab — adjust the rent amount, the
    "Rent Display Day" (default 20), or the `PIN` row if needed. The PIN is
    whatever's in that cell at the time someone unlocks the app — change it
    any time, no redeploy needed.
-8. Back in Apps Script: **Deploy -> New deployment -> Web app**.
+7. Back in Apps Script: **Deploy -> New deployment -> Web app**.
    - Execute as: **Me**
    - Who has access: **Anyone**
-9. Click **Deploy**, copy the web app URL, and share it with your roommates.
+8. Click **Deploy**, copy the web app URL, and share it with your roommates.
 
 ## PIN gate
 

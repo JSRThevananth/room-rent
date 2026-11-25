@@ -24,12 +24,41 @@ var EXPENSE_HEADERS = ['Timestamp', 'Roommate', 'Item', 'Amount'];
 var RENT_HISTORY_HEADERS = ['Timestamp', 'RentMonth', 'SpendMonth', 'Roommate', 'Spend', 'AverageSpend', 'Rent'];
 
 /**
+ * Every other function reaches the spreadsheet through this, never through
+ * SpreadsheetApp.getActiveSpreadsheet() directly. "Active spreadsheet" only
+ * exists for a script bound to a Sheet (opened via that Sheet's Extensions
+ * menu); a standalone script (created from script.google.com or Drive's
+ * "New > Apps Script") has no such thing and getActiveSpreadsheet() returns
+ * null even when run from the editor. Storing the spreadsheet's own ID in
+ * Script Properties works the same way for both kinds of project, and for
+ * the deployed web app too.
+ */
+function getSpreadsheet_() {
+  var id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+  if (!id) {
+    throw new Error('No spreadsheet is set up yet. Run setupSpreadsheet() from the Apps Script editor once first.');
+  }
+  return SpreadsheetApp.openById(id);
+}
+
+/**
  * Run this once from the Apps Script editor (select it in the function
  * dropdown, click Run) to create the sheets this app needs. Safe to run
- * again later — it never overwrites a sheet that already exists.
+ * again later — it never overwrites a sheet that already exists, and it
+ * always reuses the same spreadsheet once one has been set up.
  */
 function setupSpreadsheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var props = PropertiesService.getScriptProperties();
+  var id = props.getProperty('SPREADSHEET_ID');
+  var ss;
+  if (id) {
+    ss = SpreadsheetApp.openById(id);
+  } else {
+    // Bound script (opened from inside a Sheet): reuse that Sheet.
+    // Standalone script: create a fresh Sheet so there's something to use.
+    ss = SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.create('Roommate Rent Tracker');
+    props.setProperty('SPREADSHEET_ID', ss.getId());
+  }
 
   var roommatesSheet = ss.getSheetByName(SHEET_ROOMMATES);
   if (!roommatesSheet) {
@@ -206,7 +235,7 @@ function formatMonthLabel_(monthKey) {
 }
 
 function getSettings_() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SETTINGS);
+  var sheet = getSpreadsheet_().getSheetByName(SHEET_SETTINGS);
   if (!sheet) {
     throw new Error('Settings sheet is missing. Run setupSpreadsheet() from the Apps Script editor first.');
   }
@@ -239,7 +268,7 @@ function requirePin_(pin) {
 }
 
 function getRoommates_() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ROOMMATES);
+  var sheet = getSpreadsheet_().getSheetByName(SHEET_ROOMMATES);
   if (!sheet) {
     throw new Error('Roommates sheet is missing. Run setupSpreadsheet() from the Apps Script editor first.');
   }
@@ -257,7 +286,7 @@ function getRoommates_() {
  * same for everyone regardless of whose browser/timezone is viewing it).
  */
 function getMonthItemsForRoommate_(monthKey, roommateName) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(monthKey);
+  var sheet = getSpreadsheet_().getSheetByName(monthKey);
   if (!sheet) return [];
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return [];
@@ -279,7 +308,7 @@ function getMonthItemsForRoommate_(monthKey, roommateName) {
 }
 
 function getOrCreateMonthSheet_(monthKey) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet_();
   var sheet = ss.getSheetByName(monthKey);
   if (!sheet) {
     sheet = ss.insertSheet(monthKey);
@@ -295,7 +324,7 @@ function getOrCreateMonthSheet_(monthKey) {
  * the app for that month at all) from "sheet exists but someone has $0".
  */
 function getMonthTotals_(monthKey, roommates) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet_();
   var sheet = ss.getSheetByName(monthKey);
   var totals = {};
   roommates.forEach(function (name) { totals[name] = 0; });
@@ -358,7 +387,7 @@ function getOrComputeLockedRent_(rentMonthKey, spendMonthKey, settings) {
 }
 
 function readLockedRent_(rentMonthKey) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_RENT_HISTORY);
+  var sheet = getSpreadsheet_().getSheetByName(SHEET_RENT_HISTORY);
   if (!sheet) return null;
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return null;
@@ -379,7 +408,7 @@ function readLockedRent_(rentMonthKey) {
 }
 
 function writeLockedRent_(rentMonthKey, spendMonthKey, rows, average) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_RENT_HISTORY);
+  var sheet = getSpreadsheet_().getSheetByName(SHEET_RENT_HISTORY);
   if (!sheet) return;
   var now = new Date();
   var values = rows.map(function (r) {
